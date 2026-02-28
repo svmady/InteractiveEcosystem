@@ -3,161 +3,94 @@ import * as THREE from 'three';
 
 export default function InteractiveEcosystem() {
   const containerRef = useRef(null);
-  const sceneRef = useRef(null);
-  const rendererRef = useRef(null);
-  const cameraRef = useRef(null);
-  const particlesRef = useRef([]);
-  const mouseRef = useRef({ x: 0, y: 0, z: 0 });
-  const targetMouseRef = useRef({ x: 0, y: 0 });
-  const frameRef = useRef(0);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [colorTheme, setColorTheme] = useState('mono');
+
+  const themes = {
+    mono: { bg: 0x0a0a0a, particle: 0xffffff, line: 0x444444, accent: '#6b7280', glow: '#10b981' },
+    blue: { bg: 0x0a0f1a, particle: 0x60a5fa, line: 0x1e3a8a, accent: '#3b82f6', glow: '#60a5fa' },
+    purple: { bg: 0x0f0a1a, particle: 0xa78bfa, line: 0x4c1d95, accent: '#8b5cf6', glow: '#a78bfa' },
+    cyan: { bg: 0x0a1a1a, particle: 0x22d3ee, line: 0x164e63, accent: '#06b6d4', glow: '#22d3ee' },
+    red: { bg: 0x1a0a0a, particle: 0xf87171, line: 0x7f1d1d, accent: '#ef4444', glow: '#f87171' }
+  };
+
+  const currentTheme = themes[colorTheme];
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Scene setup
+    const container = containerRef.current;
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a0a0a, 0.002);
-    sceneRef.current = scene;
+    scene.fog = new THREE.FogExp2(currentTheme.bg, 0.002);
 
-    // Camera setup
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 50;
-    cameraRef.current = camera;
 
-    // Renderer setup
-    const renderer = new THREE.WebGLRenderer({ 
-      antialias: true, 
-      alpha: true,
-      powerPreference: 'high-performance'
-    });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x0a0a0a, 1);
-    const container = containerRef.current;
-    const canvas = renderer.domElement;
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.zIndex = '1';
-    canvas.style.pointerEvents = 'none';
-    container.appendChild(canvas);
-    rendererRef.current = renderer;
+    renderer.setClearColor(currentTheme.bg, 1);
+    
+    container.appendChild(renderer.domElement);
 
-    // Create particle system
     const particleCount = 150;
     const particles = [];
-    
-    // Geometry for instanced particles
     const geometry = new THREE.SphereGeometry(0.15, 8, 8);
-    const material = new THREE.MeshBasicMaterial({ 
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.8
-    });
-
-    // Create connection lines
-    const lineMaterial = new THREE.LineBasicMaterial({
-      color: 0x444444,
-      transparent: true,
-      opacity: 0.15,
-      blending: THREE.AdditiveBlending
-    });
-
+    const material = new THREE.MeshBasicMaterial({ color: currentTheme.particle, transparent: true, opacity: 0.8 });
+    const lineMaterial = new THREE.LineBasicMaterial({ color: currentTheme.line, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending });
     const lineGeometry = new THREE.BufferGeometry();
     const linePositions = new Float32Array(particleCount * particleCount * 3);
     lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
     const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
     scene.add(lines);
 
-    // Initialize particles
     for (let i = 0; i < particleCount; i++) {
       const mesh = new THREE.Mesh(geometry, material.clone());
-      
       const particle = {
         mesh,
-        position: new THREE.Vector3(
-          (Math.random() - 0.5) * 100,
-          (Math.random() - 0.5) * 100,
-          (Math.random() - 0.5) * 50
-        ),
-        velocity: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.2,
-          (Math.random() - 0.5) * 0.2,
-          (Math.random() - 0.5) * 0.1
-        ),
-        originalPosition: new THREE.Vector3(
-          (Math.random() - 0.5) * 100,
-          (Math.random() - 0.5) * 100,
-          (Math.random() - 0.5) * 50
-        ),
+        position: new THREE.Vector3((Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 50),
+        velocity: new THREE.Vector3((Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.1),
+        originalPosition: new THREE.Vector3((Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 50),
         mass: 0.5 + Math.random() * 1.5
       };
-
       mesh.position.copy(particle.position);
       scene.add(mesh);
       particles.push(particle);
     }
 
-    particlesRef.current = particles;
-
-    // Mouse interaction
+    let mouseX = 0, mouseY = 0, targetMouseX = 0, targetMouseY = 0;
     const handleMouseMove = (event) => {
-      targetMouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
-      targetMouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      targetMouseX = (event.clientX / window.innerWidth) * 2 - 1;
+      targetMouseY = -(event.clientY / window.innerHeight) * 2 + 1;
     };
-
     window.addEventListener('mousemove', handleMouseMove);
 
-    // Animation loop
+    let frameId;
     const animate = () => {
-      frameRef.current = requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
+      mouseX += (targetMouseX * 50 - mouseX) * 0.05;
+      mouseY += (targetMouseY * 50 - mouseY) * 0.05;
+      const mousePosition = new THREE.Vector3(mouseX, mouseY, 0);
 
-      // Smooth mouse position
-      mouseRef.current.x += (targetMouseRef.current.x * 50 - mouseRef.current.x) * 0.05;
-      mouseRef.current.y += (targetMouseRef.current.y * 50 - mouseRef.current.y) * 0.05;
-
-      const mousePosition = new THREE.Vector3(mouseRef.current.x, mouseRef.current.y, 0);
-
-      // Update particles
       let lineIndex = 0;
       const positions = lineGeometry.attributes.position.array;
 
       particles.forEach((particle, i) => {
-        // Mouse attraction/repulsion
         const distanceToMouse = particle.position.distanceTo(mousePosition);
         const mouseInfluence = Math.max(0, 30 - distanceToMouse);
         
         if (mouseInfluence > 0) {
-          const direction = new THREE.Vector3()
-            .subVectors(particle.position, mousePosition)
-            .normalize();
-          
-          // Repel from mouse
+          const direction = new THREE.Vector3().subVectors(particle.position, mousePosition).normalize();
           const force = direction.multiplyScalar(mouseInfluence * 0.008 / particle.mass);
           particle.velocity.add(force);
         }
 
-        // Particle-to-particle interaction
         particles.forEach((otherParticle, j) => {
           if (i !== j) {
             const distance = particle.position.distanceTo(otherParticle.position);
-            
             if (distance < 15 && distance > 0) {
-              const direction = new THREE.Vector3()
-                .subVectors(particle.position, otherParticle.position)
-                .normalize();
-              
-              // Slight repulsion to prevent clustering
+              const direction = new THREE.Vector3().subVectors(particle.position, otherParticle.position).normalize();
               const repulsion = direction.multiplyScalar(0.01 / distance);
               particle.velocity.add(repulsion);
-
-              // Draw connection line
               if (distance < 12) {
                 positions[lineIndex * 3] = particle.position.x;
                 positions[lineIndex * 3 + 1] = particle.position.y;
@@ -172,270 +105,128 @@ export default function InteractiveEcosystem() {
           }
         });
 
-        // Attraction to original position
-        const returnForce = new THREE.Vector3()
-          .subVectors(particle.originalPosition, particle.position)
-          .multiplyScalar(0.001);
+        const returnForce = new THREE.Vector3().subVectors(particle.originalPosition, particle.position).multiplyScalar(0.001);
         particle.velocity.add(returnForce);
-
-        // Apply velocity with damping
         particle.velocity.multiplyScalar(0.95);
         particle.position.add(particle.velocity);
-
-        // Update mesh position
         particle.mesh.position.copy(particle.position);
-
-        // Pulse effect based on velocity
         const speed = particle.velocity.length();
         const scale = 1 + speed * 2;
         particle.mesh.scale.setScalar(scale);
-
-        // Opacity based on z-position
         const opacity = THREE.MathUtils.mapLinear(particle.position.z, -25, 25, 0.3, 1);
         particle.mesh.material.opacity = Math.max(0.2, Math.min(1, opacity));
       });
 
-      // Clear unused line positions
-      for (let i = lineIndex * 3; i < positions.length; i++) {
-        positions[i] = 0;
-      }
+      for (let i = lineIndex * 3; i < positions.length; i++) positions[i] = 0;
       lineGeometry.attributes.position.needsUpdate = true;
-
-      // Subtle camera rotation
       camera.position.x = Math.sin(Date.now() * 0.0001) * 2;
       camera.position.y = Math.cos(Date.now() * 0.0001) * 2;
       camera.lookAt(0, 0, 0);
-
       renderer.render(scene, camera);
     };
-
     animate();
-    setIsLoaded(true);
 
-    // Handle resize
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
-
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(frameRef.current);
-      
+      cancelAnimationFrame(frameId);
       particles.forEach(particle => {
         scene.remove(particle.mesh);
         particle.mesh.geometry.dispose();
         particle.mesh.material.dispose();
       });
-      
       scene.remove(lines);
       lineGeometry.dispose();
       lineMaterial.dispose();
-      
-      if (container && renderer.domElement) {
-        container.removeChild(renderer.domElement);
-      }
+      if (container && renderer.domElement) container.removeChild(renderer.domElement);
       renderer.dispose();
     };
-  }, []);
+  }, [colorTheme, currentTheme.bg, currentTheme.line, currentTheme.particle]);
+
+  const textStyle = {
+    position: 'absolute',
+    color: 'white',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: '20px',
+    fontFamily: 'Arial, sans-serif',
+    zIndex: 1000,
+    pointerEvents: 'none'
+  };
 
   return (
-    <div style={{ 
-      position: 'relative', 
-      width: '100%', 
-      height: '100vh', 
-      backgroundColor: '#0a0a0a',
-      overflow: 'hidden'
-    }}>
-      {/* Three.js Canvas Container */}
-      <div 
-        ref={containerRef} 
-        style={{ 
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 1,
-          pointerEvents: 'none'
-        }} 
-      />
+    <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: '#0a0a0a' }}>
+      {/* Canvas container */}
+      <div ref={containerRef} style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
 
-      
-      {/* UI Overlay */}
-      <div style={{ 
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 100,
-        pointerEvents: 'none'
-      }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '0 2rem',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          paddingTop: '3rem',
-          paddingBottom: '3rem'
-        }}>
-          {/* Header */}
-          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div 
-                style={{ 
-                  fontSize: '10px',
-                  fontFamily: 'monospace',
-                  letterSpacing: '0.3em',
-                  color: '#6b7280',
-                  marginBottom: '1.5rem',
-                  opacity: isLoaded ? 1 : 0,
-                  transition: 'opacity 1s ease-in 0.5s'
-                }}
-              >
-                V1.0_STABLE
-              </div>
-              <h1 
-                style={{ 
-                  fontSize: 'clamp(3rem, 8vw, 6rem)',
-                  fontWeight: 'bold',
-                  letterSpacing: '-0.02em',
-                  color: '#ffffff',
-                  lineHeight: '1',
-                  margin: 0,
-                  opacity: isLoaded ? 1 : 0,
-                  transform: isLoaded ? 'translateY(0)' : 'translateY(20px)',
-                  transition: 'opacity 1s ease-in 0.7s, transform 1s ease-out 0.7s',
-                  fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif'
-                }}
-              >
-                Interactive<br />Ecosystem
-              </h1>
-            </div>
-            
-            <div 
-              style={{ 
-                textAlign: 'right',
-                opacity: isLoaded ? 1 : 0,
-                transition: 'opacity 1s ease-in 1s'
-              }}
-            >
-              <div style={{ fontSize: '12px', fontFamily: 'monospace', color: '#4b5563', marginBottom: '0.5rem' }}>
-                SYSTEM STATUS
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                <div style={{ 
-                  width: '8px', 
-                  height: '8px', 
-                  backgroundColor: '#34d399', 
-                  borderRadius: '50%',
-                  animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-                }} />
-                <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#9ca3af' }}>ACTIVE</span>
-              </div>
-            </div>
-          </header>
-
-          {/* Footer Info */}
-          <footer style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <div 
-              style={{ 
-                opacity: isLoaded ? 1 : 0,
-                transition: 'opacity 1s ease-in 1.2s'
-              }}
-            >
-              <div style={{ fontSize: '12px', fontFamily: 'monospace', color: '#4b5563', marginBottom: '0.25rem' }}>
-                PHYSICS ENGINE
-              </div>
-              <div style={{ fontSize: '14px', color: '#9ca3af' }}>
-                Particle Dynamics System
-              </div>
-            </div>
-            
-            <div 
-              style={{ 
-                textAlign: 'right',
-                opacity: isLoaded ? 1 : 0,
-                transition: 'opacity 1s ease-in 1.2s'
-              }}
-            >
-              <div style={{ fontSize: '12px', fontFamily: 'monospace', color: '#4b5563', marginBottom: '0.25rem' }}>
-                INTERACTION
-              </div>
-              <div style={{ fontSize: '14px', color: '#9ca3af' }}>
-                Move cursor to influence nodes
-              </div>
-            </div>
-          </footer>
+      {/* UI Layer - separate from canvas */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none' }}>
+        
+        {/* Top Left */}
+        <div style={{ ...textStyle, top: 40, left: 40 }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.2em', marginBottom: 10, opacity: 0.7 }}>V1.1_STABLE</div>
+          <h1 style={{ margin: 0, fontSize: 48, fontWeight: 'bold', lineHeight: 1 }}>
+            Interactive<br />Ecosystem
+          </h1>
         </div>
+
+        {/* Top Right */}
+        <div style={{ ...textStyle, top: 40, right: 40 }}>
+          <div style={{ fontSize: 11, marginBottom: 8, opacity: 0.7 }}>SYSTEM STATUS</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 8, height: 8, backgroundColor: currentTheme.glow, borderRadius: '50%' }} />
+            <span style={{ fontSize: 12, fontWeight: 'bold' }}>ACTIVE</span>
+          </div>
+        </div>
+
+        {/* Bottom Left */}
+        <div style={{ ...textStyle, bottom: 40, left: 40 }}>
+          <div style={{ fontSize: 11, marginBottom: 5, opacity: 0.7 }}>PHYSICS ENGINE</div>
+          <div style={{ fontSize: 14 }}>Particle Dynamics System</div>
+        </div>
+
+        {/* Bottom Right */}
+        <div style={{ ...textStyle, bottom: 40, right: 40 }}>
+          <div style={{ fontSize: 11, marginBottom: 5, opacity: 0.7 }}>INTERACTION</div>
+          <div style={{ fontSize: 14 }}>Move cursor to influence nodes</div>
+        </div>
+
+        {/* Theme Selector */}
+        <div style={{ 
+          position: 'absolute', 
+          top: '50%', 
+          right: 30, 
+          transform: 'translateY(-50%)',
+          zIndex: 1000,
+          pointerEvents: 'auto'
+        }}>
+          {Object.keys(themes).map((theme) => (
+            <button
+              key={theme}
+              onClick={() => setColorTheme(theme)}
+              style={{
+                display: 'block',
+                width: 50,
+                height: 50,
+                margin: '10px 0',
+                borderRadius: '50%',
+                border: `3px solid ${colorTheme === theme ? themes[theme].glow : '#444'}`,
+                backgroundColor: colorTheme === theme ? themes[theme].accent : 'rgba(0,0,0,0.5)',
+                cursor: 'pointer',
+                transition: 'all 0.3s'
+              }}
+              title={theme.toUpperCase()}
+            />
+          ))}
+        </div>
+
       </div>
-
-      {/* Corner Accents */}
-      <div 
-        style={{ 
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '8rem',
-          height: '8rem',
-          borderLeft: '2px solid #1f2937',
-          borderTop: '2px solid #1f2937',
-          opacity: isLoaded ? 1 : 0,
-          transition: 'opacity 1s ease-in 1.5s',
-          zIndex: 90
-        }}
-      />
-      <div 
-        style={{ 
-          position: 'absolute',
-          bottom: 0,
-          right: 0,
-          width: '8rem',
-          height: '8rem',
-          borderRight: '2px solid #1f2937',
-          borderBottom: '2px solid #1f2937',
-          opacity: isLoaded ? 1 : 0,
-          transition: 'opacity 1s ease-in 1.5s',
-          zIndex: 90
-        }}
-      />
-
-      {/* Scanline Effect */}
-      <div 
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.01) 2px, rgba(255,255,255,0.01) 4px)',
-          opacity: isLoaded ? 1 : 0,
-          transition: 'opacity 1s ease-in 1s',
-          pointerEvents: 'none',
-          zIndex: 80
-        }}
-      />
-
-      {/* Pulse Animation Keyframes */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
-        }
-      `}</style>
     </div>
   );
 }

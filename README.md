@@ -1,22 +1,26 @@
 
 # Interactive Ecosystem
 
-Interactive Ecosystem is a small Vite + React starter project for building interactive, browser-based ecosystem visualizations and simulations.
+Interactive Ecosystem is a real-time 3D particle dynamics visualization built with Vite, React, and Three.js. It features interactive physics-based particles that respond to cursor movement and dynamically connect based on proximity.
 
-Key goals:
+Key features:
 
-- Fast development with Vite HMR
-- Minimal React component structure (see `src/App.jsx`)
-- Lightweight build and preview scripts
+- **3D Physics Simulation** — Particle dynamics with repulsion, mouse influence, and return forces
+- **Interactive Controls** — Move your cursor to influence particle behavior in real-time
+- **Multiple Color Themes** — Switch between 5 distinct visual themes (Mono, Blue, Purple, Cyan, Red)
+- **Dynamic Connections** — Particles automatically connect with lines when within proximity
+- **Smooth Rendering** — Three.js with fog effects and optimized WebGL rendering
+- **Fast Development** — Vite HMR for instant feedback during development
 
 ## Demo
 
-Open the project locally (see instructions below) to run the interactive demo served by Vite.
+Run the interactive 3D visualization locally to see particles respond to your mouse movement and automatically form connections. The app includes real-time physics simulation with 5 selectable color themes.
 
 ## Prerequisites
 
 - Node.js v16 or newer
 - npm (or yarn/pnpm)
+- Modern browser with WebGL support
 
 ## Install
 
@@ -63,9 +67,11 @@ npm run preview
 
 ## Development Tips
 
-- Edit `src/App.jsx` to change the main UI and behavior.
-- Use the browser devtools to profile and inspect canvas/SVG rendering.
-- Keep components small and stateless where practical for easier testing.
+- **Customize Physics** — Edit particle count, mass ranges, repulsion forces, and mouse influence in `src/App.jsx`
+- **Add Color Themes** — Define new themes in the `themes` object in `src/App.jsx`
+- **Adjust Visual Properties** — Modify particle geometry, line rendering opacity, and fog density
+- **Performance Tuning** — Use browser DevTools to profile frame rates and optimize particle count for your target hardware
+- **Scene Behavior** — Camera orbits the scene while particles maintain position memory and return forces
 
 ## Contributing
 
