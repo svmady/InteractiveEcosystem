@@ -40,10 +40,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Prepare Pages structure
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p pages/my-ecosystem
+          cp -r my-ecosystem/dist/. pages/my-ecosystem/
+          echo '<!doctype html><html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0; url=my-ecosystem/"><title>Redirecting...</title></head><body><a href="my-ecosystem/">Click here if not redirected</a></body></html>' > pages/index.html
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: my-ecosystem/dist
+          path: pages
 
   deploy:
     needs: build
