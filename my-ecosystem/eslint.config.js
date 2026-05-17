@@ -6,6 +6,16 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
   globalIgnores(['dist']),
+
+  // Node-only files (Vite config, etc.)
+  {
+    files: ['vite.config.js', '**/*.config.{js,cjs,mjs}'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+
+  // App source (browser)
   {
     files: ['**/*.{js,jsx}'],
     extends: [
